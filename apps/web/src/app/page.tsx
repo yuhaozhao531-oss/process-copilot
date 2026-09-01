@@ -13,6 +13,12 @@ const SCENARIOS = [
     description: "先导指标能否比总磷泉点超标更早触发预警——合成示意数据演示。",
     status: "已实现" as const,
   },
+  {
+    href: "/flotation",
+    title: "浮选投料 · 滞后化验软测量方法论验证",
+    description: "真实铁矿浮选数据（CC0），验证实时传感器预测滞后化验指标的可行性。",
+    status: "已实现" as const,
+  },
 ];
 
 export default function Home() {

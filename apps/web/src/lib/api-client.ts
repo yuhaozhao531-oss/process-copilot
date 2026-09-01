@@ -64,6 +64,22 @@ export interface LeachateScenarioResponse {
   disclosure: string;
 }
 
+export interface SoftSensorResponse {
+  featureNames: string[];
+  coefficients: number[];
+  intercept: number;
+  ridgeAlpha: number;
+  trainSize: number;
+  testSize: number;
+  testMae: number;
+  testR2: number;
+  naiveBaselineMae: number;
+  testHours: string[];
+  testActual: number[];
+  testPredicted: number[];
+  disclosure: string;
+}
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
@@ -119,4 +135,22 @@ export async function fetchLeachateScenario(
   }
 
   return (await response.json()) as LeachateScenarioResponse;
+}
+
+export async function fetchFlotationScenario(
+  trainFraction: number = 0.8,
+): Promise<SoftSensorResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/scenarios/flotation-lag-prediction?train_fraction=${trainFraction}`,
+  );
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new ApiError(
+      `场景数据请求失败（${response.status}）：${body}`,
+      response.status,
+    );
+  }
+
+  return (await response.json()) as SoftSensorResponse;
 }
