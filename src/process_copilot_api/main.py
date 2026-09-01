@@ -9,9 +9,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from process_copilot.capacity_planner import simulate
+from process_copilot.flotation_lag_prediction import fit_soft_sensor
 from process_copilot.leachate_early_warning import DAYS, build_scenario
 
 from .environmental_schemas import LeachateScenarioResponse
+from .flotation_schemas import SoftSensorResponse
 from .schemas import CapacityPlanRequest, CapacityPlanResponse
 
 app = FastAPI(
@@ -52,3 +54,13 @@ def jiaoyishan_leachate_scenario(seed: int = 42, days: int = DAYS) -> LeachateSc
     """合成示意数据；不是息烽园区真实传感器数据，见响应中的 disclosure 字段。"""
     result = build_scenario(seed=seed, days=days)
     return LeachateScenarioResponse.from_domain(result)
+
+
+@app.get(
+    "/api/v1/scenarios/flotation-lag-prediction",
+    response_model=SoftSensorResponse,
+)
+def flotation_lag_prediction_scenario(train_fraction: float = 0.8) -> SoftSensorResponse:
+    """真实铁矿浮选数据（CC0）；结构相似的方法论验证，不是磷化工数据，见 disclosure 字段。"""
+    result = fit_soft_sensor(train_fraction=train_fraction)
+    return SoftSensorResponse.from_domain(result)
