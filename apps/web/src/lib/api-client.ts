@@ -154,3 +154,21 @@ export async function fetchFlotationScenario(
 
   return (await response.json()) as SoftSensorResponse;
 }
+
+export async function fetchMetalDosingScenario(
+  trainFraction: number = 0.8,
+): Promise<SoftSensorResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/scenarios/metal-dosing-precipitation?train_fraction=${trainFraction}`,
+  );
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new ApiError(
+      `场景数据请求失败（${response.status}）：${body}`,
+      response.status,
+    );
+  }
+
+  return (await response.json()) as SoftSensorResponse;
+}

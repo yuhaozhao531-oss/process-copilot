@@ -19,6 +19,12 @@ const SCENARIOS = [
     description: "真实铁矿浮选数据（CC0），验证实时传感器预测滞后化验指标的可行性。",
     status: "已实现" as const,
   },
+  {
+    href: "/metal-dosing",
+    title: "金属盐投加沉淀 · 磷酸铁沉淀方法论验证",
+    description: "真实污水厂化学除磷SCADA数据（CC BY-NC 3.0），R²约0.68但需警惕闭环反馈耦合。",
+    status: "已实现" as const,
+  },
 ];
 
 export default function Home() {
