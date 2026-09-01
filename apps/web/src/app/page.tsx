@@ -7,6 +7,12 @@ const SCENARIOS = [
     description: "磷石膏消纳能力约束下，多支路负荷压减方案推演。",
     status: "已实现" as const,
   },
+  {
+    href: "/xifeng",
+    title: "交椅山渣库 · 渗滤液早期预警（示意）",
+    description: "先导指标能否比总磷泉点超标更早触发预警——合成示意数据演示。",
+    status: "已实现" as const,
+  },
 ];
 
 export default function Home() {

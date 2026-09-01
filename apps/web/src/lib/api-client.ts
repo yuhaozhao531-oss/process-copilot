@@ -34,6 +34,36 @@ export interface CapacityPlanResponse {
   disclosure: string;
 }
 
+export interface VariableSpec {
+  variableId: string;
+  variableName: string;
+  unit: string;
+  monitoringPoint: string;
+  leadingIndicator: boolean;
+}
+
+export interface EarlyWarningResult {
+  triggered: boolean;
+  warningDay: number | null;
+  warningVariableId: string | null;
+  breachDay: number | null;
+  breachVariableId: string;
+  leadTimeDays: number | null;
+  summary: string;
+}
+
+export interface LeachateScenarioResponse {
+  series: {
+    dayIndex: number[];
+    series: Record<string, number[]>;
+  };
+  earlyWarning: EarlyWarningResult;
+  variables: VariableSpec[];
+  citations: { label: string; detail: string }[];
+  regulatoryLimitMgL: number;
+  disclosure: string;
+}
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
@@ -71,4 +101,22 @@ export async function simulateCapacityPlan(input: {
   }
 
   return (await response.json()) as CapacityPlanResponse;
+}
+
+export async function fetchLeachateScenario(
+  seed: number = 42,
+): Promise<LeachateScenarioResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/environmental-scenarios/jiaoyishan-leachate?seed=${seed}`,
+  );
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new ApiError(
+      `场景数据请求失败（${response.status}）：${body}`,
+      response.status,
+    );
+  }
+
+  return (await response.json()) as LeachateScenarioResponse;
 }
