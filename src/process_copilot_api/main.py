@@ -9,11 +9,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from process_copilot.capacity_planner import simulate
-from process_copilot.flotation_lag_prediction import fit_soft_sensor
+from process_copilot.flotation_lag_prediction import fit_soft_sensor as fit_flotation_soft_sensor
 from process_copilot.leachate_early_warning import DAYS, build_scenario
+from process_copilot.metal_dosing_precipitation import (
+    fit_soft_sensor as fit_metal_dosing_soft_sensor,
+)
 
 from .environmental_schemas import LeachateScenarioResponse
 from .flotation_schemas import SoftSensorResponse
+from .metal_dosing_schemas import MetalDosingSoftSensorResponse
 from .schemas import CapacityPlanRequest, CapacityPlanResponse
 
 app = FastAPI(
@@ -62,5 +66,17 @@ def jiaoyishan_leachate_scenario(seed: int = 42, days: int = DAYS) -> LeachateSc
 )
 def flotation_lag_prediction_scenario(train_fraction: float = 0.8) -> SoftSensorResponse:
     """真实铁矿浮选数据（CC0）；结构相似的方法论验证，不是磷化工数据，见 disclosure 字段。"""
-    result = fit_soft_sensor(train_fraction=train_fraction)
+    result = fit_flotation_soft_sensor(train_fraction=train_fraction)
     return SoftSensorResponse.from_domain(result)
+
+
+@app.get(
+    "/api/v1/scenarios/metal-dosing-precipitation",
+    response_model=MetalDosingSoftSensorResponse,
+)
+def metal_dosing_precipitation_scenario(
+    train_fraction: float = 0.8,
+) -> MetalDosingSoftSensorResponse:
+    """真实污水厂化学除磷SCADA数据（CC BY-NC 3.0）；结构相似的方法论验证，不是磷化工数据，见 disclosure 字段。"""
+    result = fit_metal_dosing_soft_sensor(train_fraction=train_fraction)
+    return MetalDosingSoftSensorResponse.from_domain(result)
