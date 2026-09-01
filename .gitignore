@@ -3,3 +3,8 @@ __pycache__/
 *.pyc
 .pytest_cache/
 *.egg-info/
+
+# 原始外部数据集不提交（175MB，公开数据不是本项目产出物）；
+# 提交的是 scripts/prep_flotation_data.py 生成的小型聚合文件 data/flotation_hourly.csv
+data/*.zip
+data/MiningProcess_Flotation_Plant_Database.csv
