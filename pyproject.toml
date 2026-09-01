@@ -1,0 +1,20 @@
+[project]
+name = "process-copilot"
+version = "0.1.0"
+description = "序安 Process Sentinel：只读、不接管生产的化工过程AI辅助预测/预警/仿真"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
