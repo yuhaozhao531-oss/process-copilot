@@ -95,7 +95,7 @@ export default function XifengPage() {
           这个“先漏、后测到”的顺序是2017年环保督查真实发生过的事件，不是本demo编造的假设。
         </p>
         <div className="flex items-center gap-2 text-sm">
-          <label htmlFor="seed">随机种子</label>
+          <label htmlFor="seed">换一组模拟情景</label>
           <input
             id="seed"
             type="number"
@@ -103,7 +103,7 @@ export default function XifengPage() {
             onChange={(e) => setSeed(Number(e.target.value))}
             className="w-24 rounded border border-foreground/20 bg-transparent px-2 py-1"
           />
-          <span className="text-foreground/50">换个种子看看这个假设是否稳健</span>
+          <span className="text-foreground/50">改这个数字能看到不同的模拟结果，用来确认结论不是碰巧一次对的</span>
         </div>
       </header>
 
