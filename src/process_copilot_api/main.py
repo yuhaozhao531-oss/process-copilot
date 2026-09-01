@@ -9,7 +9,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from process_copilot.capacity_planner import simulate
+from process_copilot.leachate_early_warning import DAYS, build_scenario
 
+from .environmental_schemas import LeachateScenarioResponse
 from .schemas import CapacityPlanRequest, CapacityPlanResponse
 
 app = FastAPI(
@@ -40,3 +42,13 @@ def simulate_capacity_plan(request: CapacityPlanRequest) -> CapacityPlanResponse
         gypsum_ratio_high=request.gypsum_ratio_high,
     )
     return CapacityPlanResponse.from_domain(result)
+
+
+@app.get(
+    "/api/v1/environmental-scenarios/jiaoyishan-leachate",
+    response_model=LeachateScenarioResponse,
+)
+def jiaoyishan_leachate_scenario(seed: int = 42, days: int = DAYS) -> LeachateScenarioResponse:
+    """合成示意数据；不是息烽园区真实传感器数据，见响应中的 disclosure 字段。"""
+    result = build_scenario(seed=seed, days=days)
+    return LeachateScenarioResponse.from_domain(result)
