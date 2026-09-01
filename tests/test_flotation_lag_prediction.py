@@ -1,9 +1,9 @@
 from process_copilot.flotation_lag_prediction import (
     FEATURE_COLUMNS,
-    RIDGE_ALPHA_CANDIDATES,
     fit_soft_sensor,
     load_dataset,
 )
+from process_copilot.ridge_regression import RIDGE_ALPHA_CANDIDATES
 
 
 def test_load_dataset_shape() -> None:

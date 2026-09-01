@@ -19,6 +19,12 @@
 能验证的边界：只到"浮选投料控制"这一段的方法论——实时多变量能否有效
 预测滞后化验指标本身是否可行。不能延伸到磷化工反应槽萃取段，那一段
 报告和本项目都没有真实数据覆盖。
+
+诚实说明：普通最小二乘在21个存在共线性的实时变量上过拟合，按时间顺序切出
+的测试集上反而输给"永远预测训练集均值"这个朴素基线（R²为负）。改用ridge
+正则化、且强度必须来自训练集内部交叉验证（不能拿测试集调参）之后，held-out
+测试集R²也只是勉强转正（约0.01量级）——这是这份真实数据给出的诚实结果，
+不是"AI证明有效"的展示，参见 ridge_regression.py 顶部注释里的统一纪律。
 """
 
 from __future__ import annotations
@@ -28,6 +34,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+
+from process_copilot.ridge_regression import ChronoRidgeResult, fit_chronological_ridge
 
 DISCLOSURE = (
     "结构相似的真实工业数据（巴西铁矿浮选厂，CC0协议），验证的是"
@@ -89,10 +97,6 @@ def load_dataset(csv_path: Path = DEFAULT_DATA_PATH) -> FlotationDataset:
     )
 
 
-RIDGE_ALPHA_CANDIDATES = (1.0, 10.0, 50.0, 100.0, 300.0, 1000.0, 3000.0, 10000.0)
-CV_FOLDS = 5
-
-
 @dataclass(frozen=True)
 class SoftSensorResult:
     feature_names: list[str]
@@ -109,91 +113,34 @@ class SoftSensorResult:
     test_predicted: list[float]
     disclosure: str = DISCLOSURE
 
-
-def _r2_score(actual: np.ndarray, predicted: np.ndarray) -> float:
-    residual_ss = float(np.sum((actual - predicted) ** 2))
-    total_ss = float(np.sum((actual - actual.mean()) ** 2))
-    if total_ss == 0:
-        return 0.0
-    return 1.0 - residual_ss / total_ss
-
-
-def _fit_ridge(x: np.ndarray, y: np.ndarray, alpha: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    mean = x.mean(axis=0)
-    std = x.std(axis=0)
-    std[std == 0] = 1.0  # 避免除零；该特征在这份训练数据内是常数，标准化后恒为0，不影响回归
-    design = np.hstack([np.ones((len(y), 1)), (x - mean) / std])
-    penalty = alpha * np.eye(design.shape[1])
-    penalty[0, 0] = 0.0  # 截距项不做正则化
-    coefficients = np.linalg.solve(design.T @ design + penalty, design.T @ y)
-    return coefficients, mean, std
-
-
-def _predict_ridge(coefficients: np.ndarray, mean: np.ndarray, std: np.ndarray, x: np.ndarray) -> np.ndarray:
-    design = np.hstack([np.ones((len(x), 1)), (x - mean) / std])
-    return design @ coefficients
-
-
-def _select_ridge_alpha(x_train: np.ndarray, y_train: np.ndarray) -> float:
-    """在训练集内部做扩展窗口交叉验证选正则化强度——不能用测试集选超参，否则是用未来数据调参。"""
-    fold_size = len(y_train) // (CV_FOLDS + 1)
-    mean_scores: dict[float, float] = {}
-    for alpha in RIDGE_ALPHA_CANDIDATES:
-        fold_scores = []
-        for fold in range(1, CV_FOLDS + 1):
-            train_end = fold_size * fold
-            valid_end = fold_size * (fold + 1)
-            coefficients, mean, std = _fit_ridge(x_train[:train_end], y_train[:train_end], alpha)
-            predicted = _predict_ridge(coefficients, mean, std, x_train[train_end:valid_end])
-            fold_scores.append(_r2_score(y_train[train_end:valid_end], predicted))
-        mean_scores[alpha] = float(np.mean(fold_scores))
-    return max(RIDGE_ALPHA_CANDIDATES, key=lambda a: mean_scores[a])
+    @classmethod
+    def _from_chrono_result(cls, result: ChronoRidgeResult) -> "SoftSensorResult":
+        return cls(
+            feature_names=result.feature_names,
+            coefficients=result.coefficients,
+            intercept=result.intercept,
+            ridge_alpha=result.ridge_alpha,
+            train_size=result.train_size,
+            test_size=result.test_size,
+            test_mae=result.test_mae,
+            test_r2=result.test_r2,
+            naive_baseline_mae=result.naive_baseline_mae,
+            test_hours=result.test_index,
+            test_actual=result.test_actual,
+            test_predicted=result.test_predicted,
+        )
 
 
 def fit_soft_sensor(
     dataset: FlotationDataset | None = None, train_fraction: float = 0.8
 ) -> SoftSensorResult:
-    """按时间顺序切分训练/测试集（不能随机打乱——软测量预测的是未来，随机切分会泄漏未来信息）。
-
-    21个实时变量之间存在明显共线性（同一浮选柱的风量/液位彼此相关），普通最小二乘在训练集上
-    拟合得很好、但在按时间顺序切出的测试集上反而输给"永远预测训练集均值"这个朴素基线
-    （R²为负）。改用ridge正则化能缓解，但正则化强度必须在训练集内部用扩展窗口交叉验证选出，
-    不能直接在测试集上调——那样等于用未来数据挑参数，会得到虚高的、不可信的分数。
-
-    诚实说明：即便这样处理，held-out测试集上的R²也只是勉强转正（约0.01量级），不是"AI证明
-    有效"的结果——这本身就是有价值的发现：简单线性模型在这类真实浮选数据上的滞后预测能力
-    很有限，不能因为想要一个好看的数字就回避这一点。
-    """
     if dataset is None:
         dataset = load_dataset()
-    if not 0.0 < train_fraction < 1.0:
-        raise ValueError("train_fraction must be between 0 and 1")
-
-    n = len(dataset.target)
-    split = int(n * train_fraction)
-    if split < 2 or n - split < 2:
-        raise ValueError("dataset too small for the requested train/test split")
-
-    x_train, x_test = dataset.features[:split], dataset.features[split:]
-    y_train, y_test = dataset.target[:split], dataset.target[split:]
-
-    alpha = _select_ridge_alpha(x_train, y_train)
-    coefficients_with_intercept, mean, std = _fit_ridge(x_train, y_train, alpha)
-    predicted = _predict_ridge(coefficients_with_intercept, mean, std, x_test)
-
-    naive_baseline_mae = float(np.mean(np.abs(y_test - y_train.mean())))
-
-    return SoftSensorResult(
+    chrono_result = fit_chronological_ridge(
         feature_names=dataset.feature_names,
-        coefficients=[float(c) for c in coefficients_with_intercept[1:]],
-        intercept=float(coefficients_with_intercept[0]),
-        ridge_alpha=alpha,
-        train_size=split,
-        test_size=n - split,
-        test_mae=float(np.mean(np.abs(y_test - predicted))),
-        test_r2=_r2_score(y_test, predicted),
-        naive_baseline_mae=naive_baseline_mae,
-        test_hours=dataset.hours[split:],
-        test_actual=[float(v) for v in y_test],
-        test_predicted=[float(v) for v in predicted],
+        index=dataset.hours,
+        features=dataset.features,
+        target=dataset.target,
+        train_fraction=train_fraction,
     )
+    return SoftSensorResult._from_chrono_result(chrono_result)
