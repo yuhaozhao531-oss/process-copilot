@@ -80,8 +80,10 @@ export interface SoftSensorResponse {
   disclosure: string;
 }
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+// Empty string = relative paths, proxied server-side by the rewrite in
+// next.config.ts (API_PROXY_TARGET) — avoids the browser making a mixed-content
+// (https page -> http backend) request directly.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
 export class ApiError extends Error {
   constructor(
