@@ -17,6 +17,12 @@ export default function MetalDosingPage() {
         </>
       }
       fetchScenario={fetchMetalDosingScenario}
+      flowStages={[
+        { id: "dose", icon: "💧", label: "净化磷酸 + FeSO₄投加", sublabel: "pH/温度/流量控制" },
+        { id: "react", icon: "⚗️", label: "沉淀反应", sublabel: "FePO₄·2H₂O↓" },
+        { id: "predict", icon: "🤖", label: "岭回归模型预测", sublabel: "残留浓度 T1_PO4" },
+        { id: "product", icon: "📦", label: "陈化/洗涤/分离", sublabel: "磷酸铁成品" },
+      ]}
       chartTitle="测试集：实际磷酸盐浓度 vs 模型预测值（T1_PO4）"
       verdict={() => ({
         label: "效果不错，但有一个提醒要看清楚",

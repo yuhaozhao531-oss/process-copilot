@@ -2,16 +2,18 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
+  Area,
   CartesianGrid,
+  ComposedChart,
   Legend,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 import { ApiError, type SoftSensorResponse } from "@/lib/api-client";
+import { ProcessFlowDiagram, type FlowStage } from "@/components/process-flow-diagram";
 
 export type VerdictTone = "good" | "caveat" | "weak";
 
@@ -34,6 +36,7 @@ interface SoftSensorReportProps {
   fetchScenario: (trainFraction?: number) => Promise<SoftSensorResponse>;
   chartTitle: string;
   verdict: (data: SoftSensorResponse) => Verdict;
+  flowStages?: FlowStage[];
 }
 
 export function SoftSensorReport({
@@ -42,6 +45,7 @@ export function SoftSensorReport({
   fetchScenario,
   chartTitle,
   verdict,
+  flowStages,
 }: SoftSensorReportProps) {
   const [data, setData] = useState<SoftSensorResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,11 +70,17 @@ export function SoftSensorReport({
 
   const chartData = useMemo(() => {
     if (!data) return [];
-    return data.testHours.map((hour, i) => ({
-      hour: hour.slice(5, 13), // MM-DD HH
-      实际值: data.testActual[i],
-      预测值: data.testPredicted[i],
-    }));
+    return data.testHours.map((hour, i) => {
+      const actual = data.testActual[i];
+      const predicted = data.testPredicted[i];
+      return {
+        hour: hour.slice(5, 13), // MM-DD HH
+        实际值: actual,
+        预测值: predicted,
+        _floor: Math.min(actual, predicted),
+        误差: Math.abs(actual - predicted),
+      };
+    });
   }, [data]);
 
   const topFeatures = useMemo(() => {
@@ -100,6 +110,8 @@ export function SoftSensorReport({
 
       {data && v && tone && (
         <>
+          {flowStages && <ProcessFlowDiagram title="推演链路" stages={flowStages} />}
+
           {/* 给工人看的结论：一句话+颜色，不出现统计术语 */}
           <div className={`rounded-lg border-2 ${tone.border} ${tone.bg} p-5`}>
             <div className={`flex items-center gap-2 text-lg font-semibold ${tone.text}`}>
@@ -112,18 +124,20 @@ export function SoftSensorReport({
           <div className="h-80 rounded-lg border border-foreground/10 p-4">
             <h3 className="mb-1 text-sm font-medium">{chartTitle}</h3>
             <p className="mb-2 text-xs text-foreground/50">
-              看图：蓝色虚线（模型猜的）跟黑色实线（实际测出来的）贴得越近，说明猜得越准。
+              看图：蓝色虚线（模型猜的）跟黑色实线（实际测出来的）贴得越近，说明猜得越准；橙色阴影是两者之间的差距，阴影越薄越好。
             </p>
             <ResponsiveContainer width="100%" height="85%">
-              <LineChart data={chartData} margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
+              <ComposedChart data={chartData} margin={{ top: 4, right: 12, left: 0, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
                 <XAxis dataKey="hour" tick={{ fontSize: 10 }} interval={Math.floor(chartData.length / 10)} />
                 <YAxis tick={{ fontSize: 10 }} width={44} />
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Area dataKey="_floor" stackId="gap" stroke="none" fill="transparent" legendType="none" tooltipType="none" />
+                <Area dataKey="误差" stackId="gap" stroke="none" fill="#f59e0b" fillOpacity={0.25} />
                 <Line type="monotone" dataKey="实际值" stroke="#111827" dot={false} strokeWidth={1.5} />
                 <Line type="monotone" dataKey="预测值" stroke="#2563eb" dot={false} strokeWidth={1.5} strokeDasharray="4 2" />
-              </LineChart>
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
 

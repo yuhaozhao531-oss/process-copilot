@@ -16,6 +16,12 @@ export default function FlotationPage() {
         </>
       }
       fetchScenario={fetchFlotationScenario}
+      flowStages={[
+        { id: "ore", icon: "⛏️", label: "矿石品位波动", sublabel: "入选原矿" },
+        { id: "process", icon: "🌀", label: "破碎/磨矿/浮选", sublabel: "加药量、矿浆性质实时传感" },
+        { id: "predict", icon: "🤖", label: "岭回归模型预测", sublabel: "本页验证的边界" },
+        { id: "lab", icon: "🧪", label: "化验室出结果", sublabel: "滞后约1小时" },
+      ]}
       chartTitle="测试集：实际化验值 vs 模型预测值（% Silica Concentrate）"
       verdict={(data) => ({
         label: "效果不理想，还不能用",

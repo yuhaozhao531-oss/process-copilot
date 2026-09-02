@@ -16,6 +16,65 @@ import {
   fetchLeachateScenario,
   type LeachateScenarioResponse,
 } from "@/lib/api-client";
+import { ProcessFlowDiagram, type FlowStage } from "@/components/process-flow-diagram";
+
+const STAGE_VARIABLE_GROUPS: { stageId: string; icon: string; label: string; variableIds: string[] }[] = [
+  { stageId: "pile", icon: "🏔️", label: "磷石膏堆场", variableIds: [] },
+  {
+    stageId: "membrane",
+    icon: "🧱",
+    label: "防渗膜 + 西侧边坡",
+    variableIds: ["membrane_anomaly_score", "slope_displacement_mm"],
+  },
+  {
+    stageId: "sump",
+    icon: "🛢️",
+    label: "库底导渗盲沟集水池",
+    variableIds: ["conductivity_us_cm", "leachate_level_m", "ph"],
+  },
+  { stageId: "karst", icon: "🕳️", label: "岩溶通道运移", variableIds: [] },
+  {
+    stageId: "spring",
+    icon: "💧",
+    label: "桂花泉泉点出露",
+    variableIds: ["total_phosphorus_mg_l"],
+  },
+];
+
+function buildFlowStages(data: LeachateScenarioResponse): FlowStage[] {
+  const { earlyWarning } = data;
+  return STAGE_VARIABLE_GROUPS.map((group) => {
+    if (group.variableIds.length === 0) {
+      return {
+        id: group.stageId,
+        icon: group.icon,
+        label: group.label,
+        sublabel: "此环节报告显示无在线监测",
+      };
+    }
+    const isWarningStage =
+      earlyWarning.triggered && group.variableIds.includes(earlyWarning.warningVariableId ?? "");
+    const isBreachStage = group.variableIds.includes(earlyWarning.breachVariableId);
+    if (isBreachStage) {
+      return {
+        id: group.stageId,
+        icon: group.icon,
+        label: group.label,
+        sublabel: "总磷浓度监测点",
+        state: earlyWarning.triggered ? "alert" : "normal",
+        badge: earlyWarning.triggered ? `第 ${earlyWarning.breachDay} 天超标` : undefined,
+      };
+    }
+    return {
+      id: group.stageId,
+      icon: group.icon,
+      label: group.label,
+      sublabel: "先导指标监测点",
+      state: isWarningStage ? "watch" : "normal",
+      badge: isWarningStage ? `第 ${earlyWarning.warningDay} 天偏离` : undefined,
+    };
+  });
+}
 
 function VariableChart({
   title,
@@ -90,9 +149,8 @@ export default function XifengPage() {
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold">交椅山磷石膏渣库 · 渗滤液早期预警（示意）</h1>
         <p className="text-sm text-foreground/70">
-          业务逻辑链：磷石膏堆场 → 防渗膜+雨污分流 → 集水池（正常回送处理 / 异常渗漏）→
-          岩溶通道运移 → 泉点出露。先导指标（防渗膜异常、电导率、边坡位移）理论上能在总磷于泉点超标之前反映异常——
-          这个“先漏、后测到”的顺序是2017年环保督查真实发生过的事件，不是本demo编造的假设。
+          先导指标（防渗膜异常、电导率、边坡位移）理论上能在总磷于泉点超标之前反映异常——
+          这个"先漏、后测到"的顺序是2017年环保督查真实发生过的事件，不是本demo编造的假设。
         </p>
         <div className="flex items-center gap-2 text-sm">
           <label htmlFor="seed">换一组模拟情景</label>
@@ -116,6 +174,20 @@ export default function XifengPage() {
 
       {data && (
         <>
+          <ProcessFlowDiagram
+            title="渗漏路径推演：从堆场到泉点出露"
+            stages={buildFlowStages(data)}
+            leadTime={
+              data.earlyWarning.triggered
+                ? {
+                    fromLabel: `⚠️ 先导指标异常（第 ${data.earlyWarning.warningDay} 天）`,
+                    toLabel: `🚨 总磷超标（第 ${data.earlyWarning.breachDay} 天）`,
+                    detail: `提前 ${data.earlyWarning.leadTimeDays} 天预警`,
+                  }
+                : undefined
+            }
+          />
+
           <div
             className={`rounded-lg border p-4 text-sm ${
               data.earlyWarning.triggered

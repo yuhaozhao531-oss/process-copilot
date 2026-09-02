@@ -24,6 +24,62 @@ const STRATEGY_COLORS: Record<string, string> = {
   equal_share: "#059669",
 };
 
+function CapacityGauge({
+  requestedLowTpd,
+  requestedHighTpd,
+  capTpd,
+  withinCap,
+}: {
+  requestedLowTpd: number;
+  requestedHighTpd: number;
+  capTpd: number;
+  withinCap: boolean;
+}) {
+  const scaleMax = Math.max(capTpd, requestedHighTpd) * 1.15;
+  const capPct = (capTpd / scaleMax) * 100;
+  const lowPct = (requestedLowTpd / scaleMax) * 100;
+  const highPct = (requestedHighTpd / scaleMax) * 100;
+  const fillColor = withinCap ? "bg-emerald-500" : "bg-red-500";
+
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-foreground/10 bg-surface/60 p-4">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-medium">磷石膏产出量 vs 消纳能力上限</span>
+        <span className={withinCap ? "text-emerald-700" : "text-red-600"}>
+          {withinCap ? "在上限内" : "超出上限"}
+        </span>
+      </div>
+      <div className="relative h-8 w-full overflow-hidden rounded-full bg-foreground/10">
+        <div
+          className={`absolute inset-y-0 left-0 rounded-full ${fillColor} opacity-90`}
+          style={{ width: `${Math.min(highPct, 100)}%` }}
+        />
+        <div
+          className={`absolute inset-y-0 left-0 rounded-full ${fillColor}`}
+          style={{ width: `${Math.min(lowPct, 100)}%` }}
+        />
+        <div
+          className="absolute inset-y-0 w-0.5 bg-foreground/70"
+          style={{ left: `${Math.min(capPct, 100)}%` }}
+        />
+        <span
+          className="absolute -top-5 -translate-x-1/2 text-[11px] font-medium text-foreground/70"
+          style={{ left: `${Math.min(capPct, 100)}%` }}
+        >
+          上限 {capTpd}
+        </span>
+      </div>
+      <div className="flex justify-between text-xs text-foreground/50">
+        <span>0</span>
+        <span>
+          预计产出 {requestedLowTpd}–{requestedHighTpd} 吨/天
+        </span>
+        <span>{Math.round(scaleMax)}</span>
+      </div>
+    </div>
+  );
+}
+
 function defaultLines(): ProductionLineInput[] {
   return [
     { id: "map_dap", name: "磷肥支路（MAP/DAP）", requestedP2o5Tpd: 300, priority: 3 },
@@ -220,6 +276,13 @@ export default function CapacityPlanPage() {
               : `请求处理量共 ${result.totalRequestedP2o5Tpd} 吨P2O5/天，预计磷石膏产出 ${result.requestedGypsumOutputLowTpd}–${result.requestedGypsumOutputHighTpd} 吨/天，超出消纳能力上限（${result.gypsumCapTpd} 吨/天），以下给出三种压减方案供参考。`}
           </div>
 
+          <CapacityGauge
+            requestedLowTpd={result.requestedGypsumOutputLowTpd}
+            requestedHighTpd={result.requestedGypsumOutputHighTpd}
+            capTpd={result.gypsumCapTpd}
+            withinCap={result.requestWithinCap}
+          />
+
           {chartData.length > 0 && (
             <div className="h-80 rounded-lg border border-foreground/10 p-4">
               <h3 className="mb-2 text-sm font-medium">各方案下每条支路的分配处理量</h3>
@@ -272,7 +335,19 @@ export default function CapacityPlanPage() {
                       {option.gypsumOutputLowTpd.toFixed(0)}–
                       {option.gypsumOutputHighTpd.toFixed(0)} 吨/天
                     </td>
-                    <td className="px-3 py-2">{option.utilizationPct.toFixed(1)}%</td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-24 overflow-hidden rounded-full bg-foreground/10">
+                          <div
+                            className={`h-full rounded-full ${
+                              option.utilizationPct > 100 ? "bg-red-500" : "bg-accent"
+                            }`}
+                            style={{ width: `${Math.min(option.utilizationPct, 100)}%` }}
+                          />
+                        </div>
+                        <span>{option.utilizationPct.toFixed(1)}%</span>
+                      </div>
+                    </td>
                     <td className="px-3 py-2">
                       {option.withinCap ? (
                         <span className="text-green-700">是</span>
